@@ -69,21 +69,51 @@ export function StatusPanel() {
 
       {/* 手势提示 */}
       <div className="gesture-hints">
-        <div className="hint">
-          <span className="gesture-icon">🖐️</span>
-          <span>张开手掌 - 激活控制</span>
+        <div className="hint-section">
+          <div className="hint-title">静态手势</div>
+          <div className="hint">
+            <span className="gesture-icon">🖐️</span>
+            <span>张开手掌 - 激活控制</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">👆</span>
+            <span>指向 - 移动鼠标</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">🤏</span>
+            <span>捏合 - 点击</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">✊</span>
+            <span>握拳 - 播放/暂停</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">👌</span>
+            <span>OK - 静音</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">✌️</span>
+            <span>胜利 - 截图</span>
+          </div>
         </div>
-        <div className="hint">
-          <span className="gesture-icon">👆</span>
-          <span>指向 - 移动鼠标</span>
-        </div>
-        <div className="hint">
-          <span className="gesture-icon">🤏</span>
-          <span>捏合 - 点击</span>
-        </div>
-        <div className="hint">
-          <span className="gesture-icon">✊</span>
-          <span>握拳 - 播放/暂停</span>
+        <div className="hint-section">
+          <div className="hint-title">滑动手势</div>
+          <div className="hint">
+            <span className="gesture-icon">⬅️</span>
+            <span>左滑 - 切换窗口</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">➡️</span>
+            <span>右滑 - 切换窗口</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">⬆️</span>
+            <span>上滑 - 音量+</span>
+          </div>
+          <div className="hint">
+            <span className="gesture-icon">⬇️</span>
+            <span>下滑 - 音量-</span>
+          </div>
         </div>
       </div>
     </div>

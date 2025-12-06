@@ -160,20 +160,35 @@
 .gesture-hints {
   border-top: 1px solid var(--color-text-dim);
   padding-top: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.gesture-hints .hint-section {
+  margin-bottom: 12px;
+}
+
+.gesture-hints .hint-title {
+  font-size: 10px;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  opacity: 0.8;
 }
 
 .gesture-hints .hint {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
-  font-size: 12px;
+  padding: 4px 0;
+  font-size: 11px;
   color: var(--color-text-dim);
 }
 
 .gesture-hints .gesture-icon {
-  font-size: 16px;
-  width: 24px;
+  font-size: 14px;
+  width: 20px;
   text-align: center;
 }
 
