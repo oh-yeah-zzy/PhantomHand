@@ -359,13 +359,14 @@ class PhantomHandServer:
 
         self._clients.add(websocket)
 
-        # 发送欢迎消息
+        # 发送欢迎消息（包含当前状态）
         welcome = WebSocketMessage(
             type="connected",
             timestamp=time.time() * 1000,
             data={
                 "message": "Welcome to PhantomHand",
                 "version": "0.1.0",
+                "active": self.action_executor.is_active() if self.action_executor else False,
                 "config": {
                     "camera": {
                         "width": self.config.camera.width,

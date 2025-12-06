@@ -146,9 +146,15 @@ function handleMessage(
   get: () => HandStore
 ) {
   switch (message.type) {
-    case 'connected':
+    case 'connected': {
       console.log('[WS] 收到欢迎消息:', message.data)
+      // Sync active state from server
+      const activeState = message.data.active as boolean
+      if (activeState !== undefined) {
+        set({ isActive: activeState })
+      }
       break
+    }
 
     case 'frame_data': {
       // Backend uses snake_case, need to map to camelCase
