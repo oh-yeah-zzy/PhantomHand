@@ -6,10 +6,14 @@ WebSocket 服务模块
 import asyncio
 import json
 import time
+import threading
 from typing import Set, Optional, Dict, Any
 from dataclasses import dataclass, asdict
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import websockets
 from websockets.server import WebSocketServerProtocol
+import cv2
+import numpy as np
 
 from core.capture import CameraCapture, Frame
 from core.detector import HandDetector, DetectionResult
@@ -17,6 +21,66 @@ from core.gesture import GestureClassifier, GestureProba
 from core.state_machine import GestureStateMachine, GestureEvent
 from core.action import ActionExecutor
 from config.settings import Config, default_config
+
+
+# Global reference for MJPEG stream
+_current_frame: Optional[np.ndarray] = None
+_frame_lock = threading.Lock()
+
+
+def set_current_frame(frame: np.ndarray):
+    """Set current frame for MJPEG streaming"""
+    global _current_frame
+    with _frame_lock:
+        _current_frame = frame.copy()
+
+
+def get_current_frame() -> Optional[np.ndarray]:
+    """Get current frame for MJPEG streaming"""
+    global _current_frame
+    with _frame_lock:
+        return _current_frame.copy() if _current_frame is not None else None
+
+
+class MJPEGHandler(BaseHTTPRequestHandler):
+    """MJPEG stream HTTP handler"""
+
+    def log_message(self, format, *args):
+        # Suppress default logging
+        pass
+
+    def do_GET(self):
+        if self.path == '/stream':
+            self.send_response(200)
+            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            try:
+                while True:
+                    frame = get_current_frame()
+                    if frame is not None:
+                        # Encode frame as JPEG
+                        ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        if ret:
+                            self.wfile.write(b'--frame\r\n')
+                            self.wfile.write(b'Content-Type: image/jpeg\r\n\r\n')
+                            self.wfile.write(jpeg.tobytes())
+                            self.wfile.write(b'\r\n')
+                    time.sleep(0.033)  # ~30 FPS
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
+def run_mjpeg_server(host: str, port: int):
+    """Run MJPEG HTTP server in a separate thread"""
+    server = HTTPServer((host, port), MJPEGHandler)
+    print(f"[MJPEG] Stream available at http://{host}:{port}/stream")
+    server.serve_forever()
 
 
 @dataclass
@@ -213,6 +277,10 @@ class PhantomHandServer:
             )
             self._last_detection = detection
 
+            # 绘制骨骼并更新 MJPEG 流
+            output_frame = self.detector.draw_landmarks(frame.image, detection)
+            set_current_frame(output_frame)
+
             # 处理每只手
             hands_data = []
             for hand in detection.hands:
@@ -341,9 +409,17 @@ class PhantomHandServer:
         except Exception as e:
             print(f"[ERROR] 处理消息异常: {e}")
 
-    async def run(self, host: str = "127.0.0.1", port: int = 8765):
+    async def run(self, host: str = "127.0.0.1", port: int = 8765, mjpeg_port: int = 8766):
         """运行服务器"""
         await self.start()
+
+        # 启动 MJPEG 流服务器（在单独线程中）
+        mjpeg_thread = threading.Thread(
+            target=run_mjpeg_server,
+            args=(host, mjpeg_port),
+            daemon=True
+        )
+        mjpeg_thread.start()
 
         # 启动帧处理任务
         self._processing_task = asyncio.create_task(self._process_frames())

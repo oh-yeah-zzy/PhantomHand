@@ -9,6 +9,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { HandVisualization } from './canvas/HandVisualization'
 import { StatusPanel } from './components/StatusPanel'
 import { ControlPanel } from './components/ControlPanel'
+import { CameraPreview } from './components/CameraPreview'
 import { useHandStore } from './stores/handStore'
 
 function App() {
@@ -54,6 +55,9 @@ function App() {
 
         {/* 控制面板 */}
         <ControlPanel />
+
+        {/* 摄像头预览 */}
+        <CameraPreview />
 
         {/* 连接状态指示器 */}
         <div className={`connection-indicator ${isConnected ? 'connected' : 'disconnected'}`}>

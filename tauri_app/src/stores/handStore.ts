@@ -11,11 +11,11 @@ import { HandLandmarks, FrameData, GestureEvent } from '../types'
 function convertLandmarksTo3D(landmarks: number[][]): Vector3[] {
   return landmarks.map(([x, y, z]) => {
     // 将 0-1 归一化坐标转换为 -1 到 1 的范围
-    // x: 0->1 映射到 -1->1 (但需要镜像，所以取反)
-    // y: 0->1 映射到 1->-1 (上下翻转)
+    // x: 0->1 映射到 -1->1 (后端已镜像，这里不再取反)
+    // y: 0->1 映射到 1->-1 (上下翻转，因为屏幕坐标系 y 向下)
     // z: 保持原值，稍微放大
     return new Vector3(
-      -(x - 0.5) * 2,
+      (x - 0.5) * 2,
       -(y - 0.5) * 2,
       -z * 0.5
     )
