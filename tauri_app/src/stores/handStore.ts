@@ -191,15 +191,11 @@ function handleMessage(
       store.rightHand = rightHand
 
       // 只更新统计信息（这会触发订阅了这些值的组件重渲染）
-      // 检查是否在覆盖保护期内，如果是则不更新 isActive
-      const now = Date.now()
-      const newState: Partial<HandStore> = {
+      // 注意：不再从 frame_data 更新 isActive，避免覆盖用户的设置
+      // isActive 只在连接时从 welcome 消息同步，之后由用户控制
+      set({
         inferenceTime: (rawData.inference_time_ms as number) || 0
-      }
-      if (now > store._activeOverrideUntil) {
-        newState.isActive = (rawData.active as boolean) || false
-      }
-      set(newState)
+      })
       break
     }
 
@@ -217,6 +213,14 @@ function handleMessage(
       }
       console.log('[EVENT]', event.eventType, event.gesture)
       set({ lastEvent: event })
+      break
+    }
+
+    case 'active_changed': {
+      // 后端广播的状态变更，同步到所有窗口
+      const active = message.data.active as boolean
+      console.log('[WS] Active state changed:', active)
+      set({ isActive: active })
       break
     }
 

@@ -407,6 +407,13 @@ class PhantomHandServer:
                 if self.action_executor:
                     self.action_executor.set_active(active)
                     print(f"[SERVER] 控制状态: {'激活' if active else '停用'}")
+                    # 广播状态变更给所有客户端
+                    state_msg = WebSocketMessage(
+                        type="active_changed",
+                        timestamp=time.time() * 1000,
+                        data={"active": active}
+                    )
+                    asyncio.create_task(self._broadcast(state_msg.to_json()))
 
             elif msg_type == "config_update":
                 # 更新配置
