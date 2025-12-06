@@ -3,7 +3,7 @@
  * Displays MJPEG stream from backend in a small draggable window
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface CameraPreviewProps {
   streamUrl?: string
@@ -15,6 +15,24 @@ export function CameraPreview({ streamUrl = 'http://127.0.0.1:8766/stream' }: Ca
   const [position, setPosition] = useState({ x: 20, y: 20 })
   const [isDragging, setIsDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  // Disconnect stream by clearing img src
+  const disconnectStream = useCallback(() => {
+    if (imgRef.current) {
+      imgRef.current.src = ''
+    }
+  }, [])
+
+  // Cleanup on unmount or minimize
+  useEffect(() => {
+    if (isMinimized) {
+      disconnectStream()
+    }
+    return () => {
+      disconnectStream()
+    }
+  }, [disconnectStream, isMinimized])
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only drag from header
@@ -84,6 +102,7 @@ export function CameraPreview({ streamUrl = 'http://127.0.0.1:8766/stream' }: Ca
             </div>
           ) : (
             <img
+              ref={imgRef}
               src={streamUrl}
               alt="Camera Preview"
               onError={() => setHasError(true)}

@@ -7,6 +7,7 @@ import asyncio
 import json
 import time
 import threading
+import socketserver
 from typing import Set, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -42,6 +43,12 @@ def get_current_frame() -> Optional[np.ndarray]:
         return _current_frame.copy() if _current_frame is not None else None
 
 
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
+    """Multi-threaded HTTP server to handle multiple clients"""
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 class MJPEGHandler(BaseHTTPRequestHandler):
     """MJPEG stream HTTP handler"""
 
@@ -68,6 +75,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
                             self.wfile.write(b'Content-Type: image/jpeg\r\n\r\n')
                             self.wfile.write(jpeg.tobytes())
                             self.wfile.write(b'\r\n')
+                            self.wfile.flush()
                     time.sleep(0.033)  # ~30 FPS
             except (BrokenPipeError, ConnectionResetError):
                 pass
@@ -78,7 +86,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
 
 def run_mjpeg_server(host: str, port: int):
     """Run MJPEG HTTP server in a separate thread"""
-    server = HTTPServer((host, port), MJPEGHandler)
+    server = ThreadingHTTPServer((host, port), MJPEGHandler)
     print(f"[MJPEG] Stream available at http://{host}:{port}/stream")
     server.serve_forever()
 
