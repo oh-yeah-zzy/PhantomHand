@@ -44,6 +44,9 @@ interface HandStore {
   inferenceTime: number
   isActive: boolean
 
+  // 防止状态覆盖的标志
+  _activeOverrideUntil: number
+
   // 最近的手势事件
   lastEvent: GestureEvent | null
 
@@ -67,6 +70,7 @@ export const useHandStore = create<HandStore>((set, get) => ({
   fps: 0,
   inferenceTime: 0,
   isActive: false,
+  _activeOverrideUntil: 0,
   lastEvent: null,
 
   // 连接 WebSocket
@@ -131,7 +135,8 @@ export const useHandStore = create<HandStore>((set, get) => ({
         data: { active }
       }))
     }
-    set({ isActive: active })
+    // 设置覆盖保护，500ms 内忽略后端状态更新
+    set({ isActive: active, _activeOverrideUntil: Date.now() + 500 })
   },
 
   // 直接获取方法（用于渲染循环，避免订阅）
@@ -186,10 +191,15 @@ function handleMessage(
       store.rightHand = rightHand
 
       // 只更新统计信息（这会触发订阅了这些值的组件重渲染）
-      set({
-        inferenceTime: (rawData.inference_time_ms as number) || 0,
-        isActive: (rawData.active as boolean) || false
-      })
+      // 检查是否在覆盖保护期内，如果是则不更新 isActive
+      const now = Date.now()
+      const newState: Partial<HandStore> = {
+        inferenceTime: (rawData.inference_time_ms as number) || 0
+      }
+      if (now > store._activeOverrideUntil) {
+        newState.isActive = (rawData.active as boolean) || false
+      }
+      set(newState)
       break
     }
 
