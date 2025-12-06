@@ -94,8 +94,14 @@ class ActionType(Enum):
 @dataclass
 class ActionConfig:
     """动作配置"""
-    mouse_sensitivity: float = 1.5     # 鼠标灵敏度
-    mouse_smoothing: float = 0.7       # 鼠标平滑系数
+    # 相对定位模式（类似触摸板）
+    mouse_mode: str = "relative"       # "relative" 或 "absolute"
+    mouse_speed: float = 2.0           # 鼠标速度增益
+    mouse_delta_smoothing: float = 0.5 # 位移平滑系数 (0-1, 越大越平滑但延迟越高)
+    mouse_deadzone: float = 0.003      # 死区阈值（归一化坐标）
+    # 旧的绝对定位参数（保留兼容）
+    mouse_sensitivity: float = 1.5     # 鼠标灵敏度（绝对模式）
+    mouse_smoothing: float = 0.7       # 鼠标平滑系数（绝对模式）
     scroll_speed: int = 3              # 滚动速度
     screen_width: int = 1920           # 屏幕宽度
     screen_height: int = 1080          # 屏幕高度
@@ -119,6 +125,11 @@ class ActionExecutor:
         self._mouse_pressed = False
         self._last_mouse_pos: Optional[Tuple[float, float]] = None
         self._smoothed_pos: Optional[Tuple[float, float]] = None
+
+        # 相对定位状态
+        self._rel_last_pos: Optional[Tuple[float, float]] = None
+        self._rel_smoothed_delta: Tuple[float, float] = (0.0, 0.0)
+        self._rel_is_lifted = True  # 初始为抬起状态
 
         # 动作映射
         self._gesture_action_map: Dict[str, ActionType] = {
@@ -148,6 +159,10 @@ class ActionExecutor:
         if not active:
             # 释放可能的按键
             self._release_all()
+        # 重置相对定位状态
+        self._rel_last_pos = None
+        self._rel_smoothed_delta = (0.0, 0.0)
+        self._rel_is_lifted = True
 
     def is_active(self) -> bool:
         """是否激活"""
@@ -191,6 +206,9 @@ class ActionExecutor:
             if action == ActionType.MOUSE_MOVE:
                 if hand_pos and event_type in ("enter", "hold"):
                     self._move_mouse(hand_pos)
+                elif event_type == "exit":
+                    # 手势退出时重置追踪（相当于"抬手"）
+                    self.reset_mouse_tracking()
 
             elif action == ActionType.MOUSE_CLICK:
                 if event_type == "enter":
@@ -242,6 +260,58 @@ class ActionExecutor:
         if platform.system() != "Windows":
             return
 
+        if self.config.mouse_mode == "relative":
+            self._move_mouse_relative(pos)
+        else:
+            self._move_mouse_absolute(pos)
+
+    def _move_mouse_relative(self, pos: Tuple[float, float]):
+        """相对定位模式（类似触摸板）"""
+        # 如果是抬起状态或没有上一个位置，初始化参考点
+        if self._rel_is_lifted or self._rel_last_pos is None:
+            self._rel_last_pos = pos
+            self._rel_smoothed_delta = (0.0, 0.0)
+            self._rel_is_lifted = False
+            return
+
+        # 计算本帧位移（归一化坐标）
+        dx_raw = pos[0] - self._rel_last_pos[0]
+        dy_raw = pos[1] - self._rel_last_pos[1]
+        self._rel_last_pos = pos
+
+        # 位移平滑 (EMA)
+        alpha = self.config.mouse_delta_smoothing
+        self._rel_smoothed_delta = (
+            alpha * self._rel_smoothed_delta[0] + (1 - alpha) * dx_raw,
+            alpha * self._rel_smoothed_delta[1] + (1 - alpha) * dy_raw,
+        )
+
+        # 死区检测
+        if (abs(self._rel_smoothed_delta[0]) < self.config.mouse_deadzone and
+            abs(self._rel_smoothed_delta[1]) < self.config.mouse_deadzone):
+            return
+
+        # 归一化位移 -> 像素位移，应用速度增益
+        dx_px = int(self._rel_smoothed_delta[0] * self.config.screen_width * self.config.mouse_speed)
+        dy_px = int(self._rel_smoothed_delta[1] * self.config.screen_height * self.config.mouse_speed)
+
+        if dx_px == 0 and dy_px == 0:
+            return
+
+        # 发送相对移动
+        self._send_mouse_move_relative(dx_px, dy_px)
+
+    def _send_mouse_move_relative(self, dx: int, dy: int):
+        """发送相对鼠标移动"""
+        inp = INPUT()
+        inp.type = 0  # INPUT_MOUSE
+        inp.union.mi.dx = dx
+        inp.union.mi.dy = dy
+        inp.union.mi.dwFlags = MOUSEEVENTF_MOVE
+        user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+
+    def _move_mouse_absolute(self, pos: Tuple[float, float]):
+        """绝对定位模式"""
         # 位置平滑
         if self._smoothed_pos is None:
             self._smoothed_pos = pos
@@ -266,6 +336,13 @@ class ActionExecutor:
 
         # 移动鼠标
         user32.SetCursorPos(x, y)
+
+    def reset_mouse_tracking(self):
+        """重置鼠标追踪状态（用于抬手重新定位）"""
+        self._rel_last_pos = None
+        self._rel_smoothed_delta = (0.0, 0.0)
+        self._rel_is_lifted = True
+        self._smoothed_pos = None
 
     def _mouse_down(self):
         """鼠标按下"""
