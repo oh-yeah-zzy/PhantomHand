@@ -36,7 +36,7 @@ export function StatusPanel() {
         {/* 推理时间 */}
         <div className="status-item">
           <span className="label">延迟</span>
-          <span className="value">{inferenceTime.toFixed(1)} ms</span>
+          <span className="value">{(inferenceTime ?? 0).toFixed(1)} ms</span>
         </div>
 
         {/* 控制状态 */}

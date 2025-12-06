@@ -151,18 +151,20 @@ function handleMessage(
       break
 
     case 'frame_data': {
-      const data = message.data as unknown as FrameData
+      // Backend uses snake_case, need to map to camelCase
+      const rawData = message.data as Record<string, unknown>
+      const hands = rawData.hands as Array<Record<string, unknown>> || []
 
       // 更新手部数据
       let leftHand: HandState | null = null
       let rightHand: HandState | null = null
 
-      for (const hand of data.hands) {
+      for (const hand of hands) {
         const handState: HandState = {
-          landmarks: convertLandmarksTo3D(hand.landmarks),
-          gesture: hand.gesture,
-          gestureScore: hand.gestureScore,
-          state: hand.state
+          landmarks: convertLandmarksTo3D(hand.landmarks as number[][]),
+          gesture: hand.gesture as string,
+          gestureScore: (hand.gesture_score as number) || 0,
+          state: hand.state as string
         }
 
         if (hand.handedness === 'Left') {
@@ -179,14 +181,24 @@ function handleMessage(
 
       // 只更新统计信息（这会触发订阅了这些值的组件重渲染）
       set({
-        inferenceTime: data.inferenceTimeMs,
-        isActive: data.active
+        inferenceTime: (rawData.inference_time_ms as number) || 0,
+        isActive: (rawData.active as boolean) || false
       })
       break
     }
 
     case 'gesture_event': {
-      const event = message.data as unknown as GestureEvent
+      // Backend uses snake_case, map to camelCase
+      const rawEvent = message.data as Record<string, unknown>
+      const event: GestureEvent = {
+        eventType: rawEvent.event_type as GestureEvent['eventType'],
+        gesture: rawEvent.gesture as string,
+        handId: rawEvent.hand_id as string,
+        timestamp: rawEvent.timestamp as number,
+        holdDuration: rawEvent.hold_duration as number,
+        confidence: rawEvent.confidence as number,
+        meta: rawEvent.meta as Record<string, unknown>
+      }
       console.log('[EVENT]', event.eventType, event.gesture)
       set({ lastEvent: event })
       break
