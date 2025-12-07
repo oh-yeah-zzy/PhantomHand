@@ -93,13 +93,14 @@ class GestureStateMachine:
         self.median_window = median_window
 
         # 默认手势优先级
+        # open 和 fist 用于激活/停用控制，需要最高优先级
         self.gesture_priority = gesture_priority or {
-            "pinch": 5,
-            "fist": 4,
+            "open": 6,
+            "fist": 5,
+            "pinch": 4,
             "point": 3,
             "victory": 3,
             "ok": 3,
-            "open": 2,
             "idle": 0
         }
 
@@ -309,6 +310,11 @@ class GestureStateMachine:
         """
         根据概率和优先级选择最佳手势
 
+        选择策略：
+        1. 筛选出分数超过 p_high 阈值的候选手势
+        2. 在这些候选中，选择优先级最高的
+        3. 如果没有超过阈值的，选择分数最高的
+
         Returns:
             (手势名, 概率)
         """
@@ -317,13 +323,20 @@ class GestureStateMachine:
             priority = self.gesture_priority.get(gesture, 0)
             candidates.append((gesture, score, priority))
 
-        # 先按概率排序，再按优先级
-        candidates.sort(key=lambda x: (x[1], x[2]), reverse=True)
+        if not candidates:
+            return "idle", 0.0
 
-        if candidates:
+        # 筛选出分数超过阈值的候选
+        high_score_candidates = [c for c in candidates if c[1] >= self.p_high]
+
+        if high_score_candidates:
+            # 在高分候选中，优先级优先，其次是分数
+            high_score_candidates.sort(key=lambda x: (x[2], x[1]), reverse=True)
+            return high_score_candidates[0][0], high_score_candidates[0][1]
+        else:
+            # 没有高分候选，按分数选择
+            candidates.sort(key=lambda x: x[1], reverse=True)
             return candidates[0][0], candidates[0][1]
-
-        return "idle", 0.0
 
     def get_state(self, hand_id: str) -> Optional[HandGestureState]:
         """获取指定手的状态"""
