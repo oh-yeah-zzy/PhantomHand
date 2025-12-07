@@ -206,7 +206,7 @@ class GestureStateMachine:
                 hs.hold_duration = timestamp - hs.enter_time
                 hs.confidence = current_score
 
-                # 发送 hold 事件（可以设置间隔）
+                # 发送 hold 事件（通过回调触发，用于鼠标移动等持续动作）
                 event = GestureEvent(
                     event_type="hold",
                     gesture=hs.gesture,
@@ -215,6 +215,7 @@ class GestureStateMachine:
                     hold_duration=hs.hold_duration,
                     confidence=current_score
                 )
+                self._emit_event(event)
 
             elif current_score < self.p_low:
                 # 开始退出

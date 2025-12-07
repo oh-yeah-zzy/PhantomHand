@@ -4,7 +4,7 @@
 """
 
 import time
-from typing import Dict, Optional, Callable, Tuple
+from typing import Callable, Dict, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import threading
@@ -131,12 +131,10 @@ class ActionExecutor:
         self._rel_smoothed_delta: Tuple[float, float] = (0.0, 0.0)
         self._rel_is_lifted = True  # 初始为抬起状态
 
-        # 动作映射
+        # 动作映射（open 和 fist 单独处理，不在此映射中）
         self._gesture_action_map: Dict[str, ActionType] = {
             "pinch": ActionType.MOUSE_CLICK,
             "point": ActionType.MOUSE_MOVE,
-            "fist": ActionType.MEDIA_PLAY_PAUSE,
-            "open": ActionType.MOUSE_MOVE,  # 激活状态
             "victory": ActionType.SCREENSHOT,
             "ok": ActionType.VOLUME_MUTE,
         }
@@ -153,8 +151,24 @@ class ActionExecutor:
         self._active = False
         self._action_lock = threading.Lock()
 
-    def set_active(self, active: bool):
-        """设置是否激活控制"""
+        # 激活状态变更回调（用于通知 server 广播状态）
+        self._on_active_changed: Optional[Callable[[bool], None]] = None
+
+    def set_on_active_changed(self, callback: Callable[[bool], None]):
+        """设置激活状态变更回调"""
+        self._on_active_changed = callback
+
+    def set_active(self, active: bool, notify: bool = True):
+        """
+        设置是否激活控制
+
+        Args:
+            active: 是否激活
+            notify: 是否触发回调通知（前端调用时为 False 避免循环）
+        """
+        if self._active == active:
+            return
+
         self._active = active
         if not active:
             # 释放可能的按键
@@ -163,6 +177,10 @@ class ActionExecutor:
         self._rel_last_pos = None
         self._rel_smoothed_delta = (0.0, 0.0)
         self._rel_is_lifted = True
+
+        # 通知状态变更
+        if notify and self._on_active_changed:
+            self._on_active_changed(active)
 
     def is_active(self) -> bool:
         """是否激活"""
@@ -184,20 +202,25 @@ class ActionExecutor:
             hand_pos: 手部位置 (归一化 0-1)
             meta: 附加信息
         """
-        if not self._active and gesture != "open":
+        # open 手势用于激活控制（无论当前是否激活都可以触发）
+        if gesture == "open":
+            if event_type == "enter" and not self._active:
+                self.set_active(True)
+                print("[ACTION] 控制已激活 (open 手势)")
+            return
+
+        # fist 手势用于停用控制（无论当前是否激活都可以触发）
+        if gesture == "fist":
+            if event_type == "enter" and self._active:
+                self.set_active(False)
+                print("[ACTION] 控制已停用 (fist 手势)")
+            return
+
+        # 其他手势需要激活状态才能执行
+        if not self._active:
             return
 
         with self._action_lock:
-            # 特殊处理：open 手势用于激活/停用
-            if gesture == "open":
-                if event_type == "enter":
-                    self._active = True
-                    print("[ACTION] 控制已激活")
-                elif event_type == "exit":
-                    # 可选：exit 时不停用，保持激活
-                    pass
-                return
-
             # 根据手势执行动作
             action = self._gesture_action_map.get(gesture)
             if not action:
@@ -215,10 +238,6 @@ class ActionExecutor:
                     self._mouse_down()
                 elif event_type == "exit":
                     self._mouse_up()
-
-            elif action == ActionType.MEDIA_PLAY_PAUSE:
-                if event_type == "enter":
-                    self._media_play_pause()
 
             elif action == ActionType.VOLUME_MUTE:
                 if event_type == "enter":

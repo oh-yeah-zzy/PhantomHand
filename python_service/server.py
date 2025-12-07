@@ -182,6 +182,9 @@ class PhantomHandServer:
         # 初始化动作执行器
         self.action_executor = ActionExecutor()
 
+        # 注册激活状态变更回调（用于广播到前端）
+        self.action_executor.set_on_active_changed(self._on_active_changed)
+
         self._running = True
         self._start_time = time.time()
 
@@ -237,8 +240,20 @@ class PhantomHandServer:
                 meta=event.meta
             )
 
-        # 广播事件
-        asyncio.create_task(self._broadcast_event(event))
+        # 广播事件（不广播 hold 事件，避免消息过多）
+        if event.event_type != "hold":
+            asyncio.create_task(self._broadcast_event(event))
+
+    def _on_active_changed(self, active: bool):
+        """激活状态变更回调（由手势触发）"""
+        print(f"[SERVER] 手势触发控制状态: {'激活' if active else '停用'}")
+        # 广播状态变更给所有客户端
+        state_msg = WebSocketMessage(
+            type="active_changed",
+            timestamp=time.time() * 1000,
+            data={"active": active}
+        )
+        asyncio.create_task(self._broadcast(state_msg.to_json()))
 
     async def _broadcast_event(self, event: GestureEvent):
         """广播手势事件到所有客户端"""
@@ -402,11 +417,11 @@ class PhantomHandServer:
                 await websocket.send(pong.to_json())
 
             elif msg_type == "set_active":
-                # 设置激活状态
+                # 设置激活状态（前端触发，使用 notify=False 避免重复广播）
                 active = data.get("data", {}).get("active", False)
                 if self.action_executor:
-                    self.action_executor.set_active(active)
-                    print(f"[SERVER] 控制状态: {'激活' if active else '停用'}")
+                    self.action_executor.set_active(active, notify=False)
+                    print(f"[SERVER] 前端触发控制状态: {'激活' if active else '停用'}")
                     # 广播状态变更给所有客户端
                     state_msg = WebSocketMessage(
                         type="active_changed",
