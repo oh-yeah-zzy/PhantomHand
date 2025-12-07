@@ -210,8 +210,36 @@ class GestureStateMachine:
         elif hs.state == GestureState.HELD:
             # 保持中：检查是否退出或切换
             current_score = smoothed.get(hs.gesture, 0)
+            current_priority = self.gesture_priority.get(hs.gesture, 0)
+            candidate_priority = self.gesture_priority.get(candidate_gesture, 0)
 
-            if current_score >= self.p_hold:
+            # 检查是否应该切换到更高优先级的手势
+            should_switch = (
+                candidate_gesture != hs.gesture and
+                candidate_score > self.p_high and
+                candidate_priority > current_priority  # 新手势优先级更高
+            )
+
+            if should_switch:
+                # 切换到更高优先级的手势
+                print(f"[STATE] 切换手势: {hs.gesture} -> {candidate_gesture}", flush=True)
+                exit_event = GestureEvent(
+                    event_type="exit",
+                    gesture=hs.gesture,
+                    hand_id=hand_id,
+                    timestamp=timestamp,
+                    hold_duration=hs.hold_duration,
+                    confidence=current_score
+                )
+                self._emit_event(exit_event)
+
+                # 进入新手势
+                hs.state = GestureState.ENTERING
+                hs.gesture = candidate_gesture
+                hs.enter_time = timestamp
+                hs.confidence = candidate_score
+
+            elif current_score >= self.p_hold:
                 # 继续保持
                 hs.hold_duration = timestamp - hs.enter_time
                 hs.confidence = current_score
@@ -233,8 +261,7 @@ class GestureStateMachine:
                 hs.last_update_time = timestamp
 
             elif candidate_gesture != hs.gesture and candidate_score > self.p_high:
-                # 手势切换
-                # 先退出当前手势
+                # 手势切换（优先级相同或更低的情况）
                 exit_event = GestureEvent(
                     event_type="exit",
                     gesture=hs.gesture,
