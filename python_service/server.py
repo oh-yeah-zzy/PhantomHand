@@ -317,27 +317,29 @@ class PhantomHandServer:
                     frame.timestamp
                 )
 
-                # 检测滑动
-                slide = self.classifier.detect_slide(hand)
-                if slide:
-                    direction, distance = slide
-                    if self.action_executor:
-                        self.action_executor.execute_slide(direction, distance)
-
-                    # 广播滑动事件
-                    slide_event = GestureEvent(
-                        event_type="slide",
-                        gesture=f"slide_{direction}",
-                        hand_id=hand.hand_id,
-                        timestamp=frame.timestamp,
-                        hold_duration=0,
-                        confidence=1.0,
-                        meta={"direction": direction, "distance": distance}
-                    )
-                    await self._broadcast_event(slide_event)
-
                 # 获取当前状态
                 state = self.state_machine.get_state(hand.hand_id)
+
+                # 检测滑动（当 point 手势控制鼠标时禁用，避免冲突）
+                is_pointing = state and state.gesture == "point"
+                if not is_pointing:
+                    slide = self.classifier.detect_slide(hand)
+                    if slide:
+                        direction, distance = slide
+                        if self.action_executor:
+                            self.action_executor.execute_slide(direction, distance)
+
+                        # 广播滑动事件
+                        slide_event = GestureEvent(
+                            event_type="slide",
+                            gesture=f"slide_{direction}",
+                            hand_id=hand.hand_id,
+                            timestamp=frame.timestamp,
+                            hold_duration=0,
+                            confidence=1.0,
+                            meta={"direction": direction, "distance": distance}
+                        )
+                        await self._broadcast_event(slide_event)
 
                 # 构建手部数据
                 hand_data = {
