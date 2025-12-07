@@ -204,7 +204,7 @@ class ActionExecutor:
         """
         # open 手势用于激活控制（无论当前是否激活都可以触发）
         if gesture == "open":
-            print(f"[ACTION] 收到 open 手势, event_type={event_type}, active={self._active}")
+            print(f"[ACTION] 收到 open 手势, event_type={event_type}, active={self._active}", flush=True)
             if event_type == "enter" and not self._active:
                 self.set_active(True)
                 print("[ACTION] 控制已激活 (open 手势)")

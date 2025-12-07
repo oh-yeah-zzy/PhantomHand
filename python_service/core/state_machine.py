@@ -164,9 +164,12 @@ class GestureStateMachine:
         # 找到最高优先级的候选手势
         candidate_gesture, candidate_score = self._get_best_gesture(smoothed)
 
-        # 调试：打印候选手势信息
-        if candidate_gesture == "open" and candidate_score > 0.5:
-            print(f"[DEBUG] open 分数={candidate_score:.2f}, 阈值={self.p_high}, 状态={hs.state.value}")
+        # 调试：每秒打印一次候选手势（避免刷屏）
+        import time
+        current_sec = int(time.time())
+        if not hasattr(self, '_last_debug_sec') or self._last_debug_sec != current_sec:
+            self._last_debug_sec = current_sec
+            print(f"[DEBUG] 候选手势={candidate_gesture}, 分数={candidate_score:.2f}, 阈值={self.p_high}", flush=True)
 
         # 状态机转换
         event = None
@@ -178,7 +181,7 @@ class GestureStateMachine:
                 hs.gesture = candidate_gesture
                 hs.enter_time = timestamp
                 hs.confidence = candidate_score
-                print(f"[STATE] {candidate_gesture} 进入 ENTERING 状态")
+                print(f"[STATE] {candidate_gesture} 进入 ENTERING 状态", flush=True)
 
         elif hs.state == GestureState.ENTERING:
             # 进入中：检查是否稳定进入
@@ -197,7 +200,7 @@ class GestureStateMachine:
                         hold_duration=0,
                         confidence=candidate_score
                     )
-                    print(f"[STATE] 触发 enter 事件: {hs.gesture}")
+                    print(f"[STATE] 触发 enter 事件: {hs.gesture}", flush=True)
                     self._emit_event(event)
             else:
                 # 切换或退出
