@@ -192,6 +192,7 @@ class GestureStateMachine:
                         hold_duration=0,
                         confidence=candidate_score
                     )
+                    print(f"[STATE] 触发 enter 事件: {hs.gesture}")
                     self._emit_event(event)
             else:
                 # 切换或退出
