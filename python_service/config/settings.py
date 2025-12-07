@@ -35,9 +35,9 @@ class StateMachineConfig:
     """状态机配置"""
 
     # 概率阈值
-    p_high: float = 0.7      # 进入手势的高阈值
-    p_hold: float = 0.5      # 保持手势的阈值
-    p_low: float = 0.3       # 退出手势的低阈值
+    p_high: float = 0.4      # 进入手势的高阈值
+    p_hold: float = 0.3      # 保持手势的阈值
+    p_low: float = 0.2       # 退出手势的低阈值
 
     # 时间窗口（毫秒）
     t_enter: int = 120       # 进入手势需要的持续时间
