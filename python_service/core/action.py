@@ -133,7 +133,7 @@ class ActionExecutor:
 
         # 动作映射（open 和 fist 单独处理，不在此映射中）
         self._gesture_action_map: Dict[str, ActionType] = {
-            "pinch": ActionType.MOUSE_CLICK,
+            "thumbs_up": ActionType.MOUSE_CLICK,  # 竖大拇指用于点击
             "point": ActionType.MOUSE_MOVE,
             "victory": ActionType.SCREENSHOT,
             "ok": ActionType.VOLUME_MUTE,

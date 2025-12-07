@@ -114,6 +114,9 @@ class GestureClassifier:
         # 6. OK手势检测
         proba["ok"] = self._calc_ok_score(lm, finger_states, hand_scale)
 
+        # 7. 竖大拇指检测
+        proba["thumbs_up"] = self._calc_thumbs_up_score(lm, finger_states)
+
         # 归一化（使用 softmax 风格的归一化）
         proba = self._normalize_scores(proba)
 
@@ -291,6 +294,24 @@ class GestureClassifier:
         others_score = others_extended / 3.0
 
         return circle_score * 0.6 + others_score * 0.4
+
+    def _calc_thumbs_up_score(
+        self,
+        lm: np.ndarray,
+        finger_states: Dict[str, bool]
+    ) -> float:
+        """计算竖大拇指的得分"""
+        # 大拇指伸展
+        thumb_extended = finger_states["thumb"]
+
+        if not thumb_extended:
+            return 0.0
+
+        # 其他四指弯曲
+        others_bent = sum(1 for f in ["index", "middle", "ring", "pinky"] if not finger_states[f])
+        others_score = others_bent / 4.0
+
+        return others_score * 0.7 + 0.3
 
     def _normalize_scores(self, scores: Dict[str, float]) -> Dict[str, float]:
         """归一化分数"""

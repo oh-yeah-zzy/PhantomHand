@@ -97,7 +97,7 @@ class GestureStateMachine:
         self.gesture_priority = gesture_priority or {
             "open": 6,
             "fist": 5,
-            "pinch": 4,
+            "thumbs_up": 4,  # 竖大拇指用于点击
             "point": 3,
             "victory": 3,
             "ok": 3,

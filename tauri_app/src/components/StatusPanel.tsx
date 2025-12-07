@@ -84,8 +84,8 @@ export function StatusPanel() {
             <span>指向 - 移动鼠标</span>
           </div>
           <div className="hint">
-            <span className="gesture-icon">🤏</span>
-            <span>捏合 - 点击</span>
+            <span className="gesture-icon">👍</span>
+            <span>竖大拇指 - 点击</span>
           </div>
           <div className="hint">
             <span className="gesture-icon">👌</span>
